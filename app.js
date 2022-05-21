@@ -39,8 +39,8 @@ const conf = {
 const Koa = require('koa');
 const app = new Koa();
 const json = require('koa-json');
-const cors = require('@koa/cors');
-app.use(cors());
+// const cors = require('@koa/cors');
+// app.use(cors());
 const onerror = require('koa-onerror');
 const koaBody = require('koa-body')();
 const upload = require('@koa/multer')();
@@ -143,9 +143,14 @@ router.post('/api/print', koaBody, async (ctx, next) => {
     for (let i = 0; i < config.paths.length; i++) {
       let data = await parsePDF(config.paths[i]);
       if (data.Pages.length % 2 == 1) {
-        await print('./blank.pdf', {
-          printer: conf.printer,
-        });
+        try {
+          await print('./blank.pdf', {
+            printer: conf.printer,
+          });
+        } catch (error) {
+          duplex.active = false;
+          return (ctx.body = { success: false, err: 'printerError' });
+        }
       }
       let p = 2;
       let a = [];
@@ -154,17 +159,21 @@ router.post('/api/print', koaBody, async (ctx, next) => {
         p += 2;
       }
       if (a.length) {
-        await print(config.paths[i], {
-          printer: conf.printer,
-          pages: a.join(','),
-          monochrome: config.mono,
-        });
+        try {
+          await print(config.paths[i], {
+            printer: conf.printer,
+            pages: a.join(','),
+            monochrome: config.mono,
+          });
+        } catch (error) {
+          return (ctx.body = { success: false, err: 'printerError' });
+        }
       }
     }
-    ctx.body = {
+    return (ctx.body = {
       success: true,
       uuid: duplex.uuid,
-    };
+    });
   } else {
     for (let i = 0; i < config.paths.length; i++) {
       await print(config.paths[i], {
@@ -189,11 +198,16 @@ router.post('/api/duplex', koaBody, async (ctx, next) => {
       a.push(p);
       p += 2;
     }
-    await print(duplex.paths[i], {
-      printer: conf.printer,
-      pages: a.join(','),
-      monochrome: duplex.mono,
-    });
+    try {
+      await print(duplex.paths[i], {
+        printer: conf.printer,
+        pages: a.join(','),
+        monochrome: duplex.mono,
+      });
+    } catch (error) {
+      duplex.active = false;
+      return (ctx.body = { success: false, err: 'printerError' });
+    }
   }
   duplex.active = false;
   return (ctx.body = {

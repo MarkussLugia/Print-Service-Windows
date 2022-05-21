@@ -28,7 +28,7 @@
   </transition>
   <transition name="stage2" enter-from-class="enter-from" enter-to-class="enter-to" leave-from-class="leave-from" leave-to-class="leave-to">
     <div class="master-box" v-if="stage == 'duplexSubmitting' || stage == 'duplexWaiting'">
-      <div class="duplex-info">需要翻转纸张以继续双面打印。</div>
+      <div class="duplex-info">需要将纸张翻面以继续双面打印。</div>
       <FlipAnimation class="flip-animation"></FlipAnimation>
       <div class="bottom">
         <div class="error">
@@ -53,14 +53,14 @@
 
 <script>
 import FileUpload from './components/FileUpload.vue';
-import ProgressIndicator from "./components/ProgressIndicator.vue";
+import ProgressIndicator from './components/ProgressIndicator.vue';
 import axios from 'axios';
-import { ref } from "vue";
-import SwitchBar from "./components/SwitchBar.vue";
-import LineBreak from "./components/LineBreak.vue";
-import AnimatedButton from "./components/animatedButton.vue";
-import FlipAnimation from "./components/FlipAnimation.vue";
-import PrintCompletion from "./components/PrintCompletion.vue";
+import { ref } from 'vue';
+import SwitchBar from './components/SwitchBar.vue';
+import LineBreak from './components/LineBreak.vue';
+import AnimatedButton from './components/animatedButton.vue';
+import FlipAnimation from './components/FlipAnimation.vue';
+import PrintCompletion from './components/PrintCompletion.vue';
 
 function asyncModal(text) {
   return new Promise((resolve, reject) => {
@@ -73,14 +73,14 @@ export default {
   name: 'App',
   data() {
     return {
-      stage: "",
+      stage: '',
       files: [],
       socket: {
         status: 3
       },
       duplex: false,
       color: false,
-      errmsg: "",
+      errmsg: '',
       serverDuplex: false,
     };
   },
@@ -94,22 +94,24 @@ export default {
     PrintCompletion
   },
   methods: {
+    reload() {
+      location.reload();
+    },
     update() {
+      if (this.stage == 'submitting' || this.stage == 'duplexSubmitting') return;
       axios.get('http://' + location.host + '/api/status').then(res => {
         this.serverDuplex = res.data.duplex.active;
-        if (res.data.duplex.uuid && res.data.duplex.uuid == localStorage.getItem("duplexUuid")) {
-          if (this.stage != "duplexWaiting" && this.stage != "duplexSubmitting") {
-            this.stage = "duplexWaiting"
+        if (res.data.duplex.uuid && res.data.duplex.uuid == localStorage.getItem('duplexUuid')) {
+          if (this.stage != 'duplexWaiting' && this.stage != 'duplexSubmitting') {
+            this.stage = 'duplexWaiting'
           }
         }
       }).catch(err => {
         this.errmsg = err.toString()
       })
     },
-    reload() {
-      location.reload();
-    },
     async upload(files) {
+      if (!files) return;
       if (files.length + this.files.length > 5) {
         files = files.slice(0, 5 - this.files.length)
       }
@@ -119,7 +121,7 @@ export default {
           progress: ref(0),
           completed: ref(false),
           controller: new AbortController(),
-          remoteName: ""
+          remoteName: ''
         }
         this.files.push(e)
         let form = new FormData();
@@ -143,8 +145,9 @@ export default {
       });
     },
     submitPrint() {
-      asyncModal("要提交打印这" + this.files.length + "个文件吗？").then(() => {
-        this.stage = "submitting";
+      if (!this.files.length) return;
+      asyncModal('要打印这' + this.files.length + '个文件吗？').then(() => {
+        this.stage = 'submitting';
         let paths = []
         for (let i = this.files.length - 1; i >= 0; i--) {
           paths.push(this.files[i].remoteName)
@@ -163,45 +166,45 @@ export default {
         }).then((res) => {
           if (res.data.success) {
             if (res.data.uuid) {
-              localStorage.setItem("duplexUuid", res.data.uuid);
-              this.stage = "duplexWaiting"
+              localStorage.setItem('duplexUuid', res.data.uuid);
+              this.stage = 'duplexWaiting'
             }
-            else this.stage = "finished"
+            else this.stage = 'finished'
           } else {
             this.errmsg = res.data.err
-            this.stage = "ready"
+            this.stage = 'ready'
             this.update()
           }
         }).catch(err => {
           this.errmsg = err.toString()
-          this.stage = "ready"
+          this.stage = 'ready'
           this.update()
         })
 
       })
     },
     continueDuplex() {
-      asyncModal("确认已经全部偶数页已经打印完毕，并已按提示翻转纸张？").then(() => {
-        this.stage = "duplexSubmitting"
+      asyncModal('你确定全部偶数页已经打印完毕，并且已经入内按照提示翻转纸张了吗？').then(() => {
+        this.stage = 'duplexSubmitting'
         axios({
           method: 'post',
           url: 'http://' + location.host + '/api/duplex',
         }).then(res => {
-          if (res.data.success) this.stage = "finished"
+          if (res.data.success) this.stage = 'finished'
           else {
             this.errmsg = res.data.err
-            this.stage = "duplexWaiting"
+            this.stage = 'duplexWaiting'
             this.update()
           }
         }).catch(err => {
           this.errmsg = err.toString()
-          this.stage = "duplexWaiting"
+          this.stage = 'duplexWaiting'
           this.update()
         })
       })
     },
     removeFile(file) {
-      asyncModal("要删除列表中的“" + file.name + "”吗？").then(() => {
+      asyncModal('要删除列表中的“' + file.name + '”吗？').then(() => {
         if (!file.completed.value) {
           file.controller.abort()
         }
@@ -220,7 +223,7 @@ export default {
     }
   },
   mounted() {
-    this.stage = "ready"
+    this.stage = 'ready'
     this.update()
     setInterval(() => {
       this.update()
@@ -396,6 +399,7 @@ body {
   border-radius: 8rem;
   letter-spacing: 2rem;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .duplex-info {
